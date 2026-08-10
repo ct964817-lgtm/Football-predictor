@@ -14,13 +14,14 @@ print("=" * 60)
 load_dotenv()
 
 # Obtener variables
-API_KEY = os.getenv('API_FOOTBALL_KEY')
+API_KEY = os.getenv('FOOTBALL_DATA_KEY')  # <-- CAMBIA EL NOMBRE
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 # Verificar API Key
 if not API_KEY:
-    print("❌ ERROR: API_FOOTBALL_KEY no configurada")
-    print("ℹ️ Configura la variable API_FOOTBALL_KEY")
+    print("❌ ERROR: FOOTBALL_DATA_KEY no configurada")
+    print("ℹ️ Configura la variable FOOTBALL_DATA_KEY")
+    print("   Ve a https://www.football-data.org y obtén tu API Key")
     sys.exit(1)
 
 # Verificar Database
@@ -42,105 +43,143 @@ except Exception as e:
     print(f"❌ Error de conexión a BD: {e}")
     sys.exit(1)
 
-# Función para obtener partidos
+# Función para obtener partidos desde Football-Data.org
 def get_matches():
-    url = "https://v3.football.api-sports.io/fixtures"
-    headers = {"x-rapidapi-key": API_KEY}
+    """Obtiene partidos de hoy desde Football-Data.org"""
+    url = "https://api.football-data.org/v4/matches"
+    headers = {"X-Auth-Token": API_KEY}
     today = datetime.now().strftime('%Y-%m-%d')
     
-    # Liga: 140 = LaLiga, 39 = Premier League
-    leagues = [
-        {"id": 140, "name": "LaLiga"},
-        {"id": 39, "name": "Premier League"}
+    print(f"\n📅 Fecha de hoy: {today}")
+    
+    # Ligas (ID de Football-Data.org)
+    competitions = [
+        {"id": "PD", "name": "LaLiga"},          # Primera División
+        {"id": "PL", "name": "Premier League"},   # Premier League
+        {"id": "BL1", "name": "Bundesliga"},      # Bundesliga
+        {"id": "SA", "name": "Serie A"},          # Serie A
+        {"id": "FL1", "name": "Ligue 1"}          # Ligue 1
     ]
     
     all_matches = []
     
-    for league in leagues:
-        print(f"\n🔍 Buscando en {league['name']}...")
-        
+    for comp in competitions:
         try:
+            print(f"\n🔍 Buscando en {comp['name']}...")
+            
             params = {
-                "date": today,
-                "league": league["id"],
-                "season": "2025"
+                "dateFrom": today,
+                "dateTo": today,
+                "competitions": comp["id"],
+                "status": "SCHEDULED,LIVE,FINISHED"
             }
             
-            response = requests.get(url, headers=headers, params=params, timeout=10)
+            response = requests.get(url, headers=headers, params=params, timeout=15)
             
             if response.status_code != 200:
-                print(f"  ⚠️ Error {response.status_code} en {league['name']}")
+                print(f"  ⚠️ Error {response.status_code} en {comp['name']}")
+                if response.status_code == 403:
+                    print("  ⚠️ Posible límite de peticiones excedido (10/minuto)")
                 continue
-            
+                
             data = response.json()
+            matches = data.get('matches', [])
             
-            if not data.get('response'):
-                print(f"  ℹ️ No hay partidos en {league['name']} hoy")
+            if not matches:
+                print(f"  ℹ️ No hay partidos en {comp['name']} hoy")
                 continue
             
-            for match in data['response']:
-                fixture = match.get('fixture', {})
-                home = match.get('teams', {}).get('home', {})
-                away = match.get('teams', {}).get('away', {})
-                goals = match.get('goals', {})
+            # Mapear resultados de Football-Data.org
+            status_map = {
+                'SCHEDULED': 'NS',
+                'LIVE': '1H',
+                'IN_PLAY': '1H',
+                'PAUSED': 'HT',
+                'FINISHED': 'FT',
+                'POSTPONED': 'PST',
+                'CANCELLED': 'CAN'
+            }
+            
+            for match in matches:
+                home_team = match.get('homeTeam', {})
+                away_team = match.get('awayTeam', {})
+                score = match.get('score', {}).get('fullTime', {})
                 
                 match_data = {
-                    'match_id': fixture.get('id'),
+                    'match_id': match.get('id'),
                     'season': 2025,
-                    'league_id': league["id"],
-                    'match_date': fixture.get('date', today)[:10],
-                    'home_team_id': home.get('id'),
-                    'away_team_id': away.get('id'),
-                    'home_goals': goals.get('home') or 0,
-                    'away_goals': goals.get('away') or 0,
-                    'status': fixture.get('status', {}).get('short', 'NS')
+                    'league_id': comp["id"],
+                    'match_date': match.get('utcDate', today)[:10],
+                    'home_team_id': home_team.get('id'),
+                    'away_team_id': away_team.get('id'),
+                    'home_goals': score.get('home') if score.get('home') is not None else 0,
+                    'away_goals': score.get('away') if score.get('away') is not None else 0,
+                    'status': status_map.get(match.get('status', ''), 'NS')
                 }
                 
                 if match_data['home_team_id'] and match_data['away_team_id']:
                     all_matches.append(match_data)
             
-            print(f"  ✅ {len(data['response'])} partidos encontrados")
+            print(f"  ✅ {len(matches)} partidos encontrados en {comp['name']}")
             
+        except requests.exceptions.Timeout:
+            print(f"  ⚠️ Timeout en {comp['name']}")
         except Exception as e:
-            print(f"  ❌ Error: {e}")
+            print(f"  ❌ Error en {comp['name']}: {e}")
     
+    if not all_matches:
+        print("\nℹ️ No se encontraron partidos en ninguna liga")
+        return pd.DataFrame()
+    
+    print(f"\n✅ Total partidos encontrados: {len(all_matches)}")
     return pd.DataFrame(all_matches)
 
-# Función principal
 def main():
-    print("\n📅 Fecha de hoy:", datetime.now().strftime('%Y-%m-%d %H:%M'))
-    
-    # Obtener partidos
-    df = get_matches()
-    
-    if df.empty:
-        print("\nℹ️ No se encontraron partidos hoy")
-        print("\n✅ Pipeline completado (sin datos)")
-        return
-    
-    # Guardar en base de datos
-    print(f"\n💾 Guardando {len(df)} partidos...")
-    
+    """Función principal"""
     try:
+        print("\n" + "=" * 60)
+        print("📊 ETL PIPELINE - EJECUTANDO")
+        print("=" * 60)
+        
+        # Obtener partidos
+        df = get_matches()
+        
+        if df.empty:
+            print("\n✅ Pipeline completado - No hay partidos hoy")
+            return
+        
+        # Guardar en base de datos
+        print(f"\n💾 Guardando {len(df)} partidos en la base de datos...")
+        
         # Crear tabla si no existe (simple)
         df.head(0).to_sql('matches', engine, if_exists='replace', index=False)
         
         # Guardar datos
         df.to_sql('matches', engine, if_exists='append', index=False)
-        print(f"✅ {len(df)} partidos guardados correctamente")
         
-        # Mostrar resumen
         print("\n📊 PARTIDOS DE HOY:")
         for _, row in df.iterrows():
-            print(f"  ⚽ {row['home_team_id']} vs {row['away_team_id']} - {row['status']}")
-            
+            status_emoji = {
+                'FT': '✅',
+                'NS': '⏰',
+                '1H': '⏳',
+                '2H': '⏳',
+                'HT': '⏸️',
+                'PST': '📅',
+                'CAN': '❌'
+            }.get(row['status'], '⏰')
+            print(f"  {status_emoji} ID:{row['match_id']} - {row['home_team_id']} vs {row['away_team_id']}")
+        
+        print(f"\n✅ {len(df)} partidos guardados correctamente")
+        
     except Exception as e:
-        print(f"❌ Error guardando datos: {e}")
+        print(f"\n❌ Error en el pipeline: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
-    
-    print("\n" + "=" * 60)
-    print("✅ PIPELINE COMPLETADO EXITOSAMENTE")
-    print("=" * 60)
 
 if __name__ == "__main__":
     main()
+    print("\n" + "=" * 60)
+    print("✅ PIPELINE COMPLETADO EXITOSAMENTE")
+    print("=" * 60)
