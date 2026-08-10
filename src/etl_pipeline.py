@@ -183,3 +183,30 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("✅ PIPELINE COMPLETADO EXITOSAMENTE")
     print("=" * 60)
+    # Después de guardar partidos, ejecutar modelo y alertas
+if not df.empty:
+    print("\n" + "=" * 60)
+    print("🧠 EJECUTANDO MODELO DE PREDICCIÓN...")
+    print("=" * 60)
+    
+    try:
+        # Ejecutar modelo
+        import subprocess
+        result = subprocess.run(['python', 'src/model_trainer.py'], capture_output=True, text=True)
+        print(result.stdout)
+        if result.stderr:
+            print(f"⚠️ Errores: {result.stderr}")
+    except Exception as e:
+        print(f"❌ Error ejecutando modelo: {e}")
+    
+    print("\n" + "=" * 60)
+    print("📱 ENVIANDO ALERTAS DE TELEGRAM...")
+    print("=" * 60)
+    
+    try:
+        result = subprocess.run(['python', 'src/telegram_alerts.py'], capture_output=True, text=True)
+        print(result.stdout)
+        if result.stderr:
+            print(f"⚠️ Errores: {result.stderr}")
+    except Exception as e:
+        print(f"❌ Error enviando alertas: {e}")
