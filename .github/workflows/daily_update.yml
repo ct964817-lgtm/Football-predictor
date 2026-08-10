@@ -2,8 +2,8 @@ name: Daily Football Update
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # Todos los días a las 6 AM
-  workflow_dispatch:  # Para ejecutar manualmente
+    - cron: '0 6 * * *'
+  workflow_dispatch:
 
 jobs:
   update-data:
@@ -19,13 +19,12 @@ jobs:
     
     - name: Install dependencies
       run: |
+        pip install --upgrade pip
         pip install -r requirements.txt
     
     - name: Run ETL Pipeline
       env:
         API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: |
         python src/etl_pipeline.py
