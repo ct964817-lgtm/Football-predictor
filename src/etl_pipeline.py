@@ -44,7 +44,9 @@ except Exception as e:
     print(f"❌ Error de conexión a BD: {e}")
     sys.exit(1)
 
-# Función para obtener partidos desde Football-Data.org
+# ============================================
+# FUNCIÓN PRINCIPAL: get_matches()
+# ============================================
 def get_matches():
     """Obtiene partidos de hoy desde Football-Data.org"""
     url = "https://api.football-data.org/v4/matches"
@@ -53,13 +55,41 @@ def get_matches():
     
     print(f"\n📅 Fecha de hoy: {today}")
     
-    # Ligas (ID de Football-Data.org)
+    # 🔥 LISTA COMPLETA DE LIGAS (25 ligas)
     competitions = [
+        # 🌟 TOP 5 EUROPEAS
         {"id": "PD", "name": "LaLiga"},
         {"id": "PL", "name": "Premier League"},
         {"id": "BL1", "name": "Bundesliga"},
         {"id": "SA", "name": "Serie A"},
-        {"id": "FL1", "name": "Ligue 1"}
+        {"id": "FL1", "name": "Ligue 1"},
+        
+        # 🌟 SEGUNDAS DIVISIONES
+        {"id": "SD", "name": "LaLiga 2"},
+        {"id": "ELC", "name": "Championship"},
+        {"id": "BL2", "name": "Bundesliga 2"},
+        
+        # 🌟 OTRAS LIGAS EUROPEAS
+        {"id": "PPL", "name": "Primeira Liga"},
+        {"id": "DED", "name": "Eredivisie"},
+        {"id": "BPL", "name": "Pro League"},
+        {"id": "GSL", "name": "Super League"},
+        {"id": "SUL", "name": "Super Lig"},
+        {"id": "CDL", "name": "Liga Checa"},
+        {"id": "DPL", "name": "Liga Danesa"},
+        {"id": "NSL", "name": "Liga Noruega"},
+        {"id": "SWL", "name": "Liga Sueca"},
+        
+        # 🌟 AMÉRICA
+        {"id": "MLS", "name": "MLS"},
+        {"id": "BSA", "name": "Brasileirão"},
+        {"id": "LFA", "name": "Liga Argentina"},
+        {"id": "LMS", "name": "Liga MX"},
+        
+        # 🌟 ASIA Y OCEANÍA
+        {"id": "AUL", "name": "A-League"},
+        {"id": "JFL", "name": "J-League"},
+        {"id": "KFL", "name": "K-League"},
     ]
     
     all_matches = []
@@ -89,7 +119,7 @@ def get_matches():
                 print(f"  ℹ️ No hay partidos en {comp['name']} hoy")
                 continue
             
-            # Mapear resultados de Football-Data.org
+            # Mapear estados
             status_map = {
                 'SCHEDULED': 'NS',
                 'LIVE': '1H',
@@ -134,6 +164,9 @@ def get_matches():
     print(f"\n✅ Total partidos encontrados: {len(all_matches)}")
     return pd.DataFrame(all_matches)
 
+# ============================================
+# FUNCIÓN PRINCIPAL
+# ============================================
 def main():
     """Función principal"""
     try:
@@ -146,7 +179,7 @@ def main():
         
         if df.empty:
             print("\n✅ Pipeline completado - No hay partidos hoy")
-            return  # <-- SALIR AQUÍ SI NO HAY PARTIDOS
+            return
         
         # Guardar en base de datos
         print(f"\n💾 Guardando {len(df)} partidos en la base de datos...")
@@ -188,23 +221,6 @@ def main():
                 print(f"⚠️ Errores: {result.stderr}")
         except Exception as e:
             print(f"❌ Error ejecutando modelo: {e}")
-        
-        # --- ENVIAR ALERTAS DE TELEGRAM ---
-        print("\n" + "=" * 60)
-        print("📱 ENVIANDO ALERTAS DE TELEGRAM...")
-        print("=" * 60)
-        
-        try:
-            result = subprocess.run(
-                ['python', 'src/telegram_alerts.py'], 
-                capture_output=True, 
-                text=True
-            )
-            print(result.stdout)
-            if result.stderr:
-                print(f"⚠️ Errores: {result.stderr}")
-        except Exception as e:
-            print(f"❌ Error enviando alertas: {e}")
         
     except Exception as e:
         print(f"\n❌ Error en el pipeline: {e}")
