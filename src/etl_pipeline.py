@@ -5,6 +5,7 @@ import pandas as pd
 from datetime import datetime
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
+import subprocess
 
 print("=" * 60)
 print("⚽ ETL PIPELINE - INICIANDO")
@@ -14,7 +15,7 @@ print("=" * 60)
 load_dotenv()
 
 # Obtener variables
-API_KEY = os.getenv('FOOTBALL_DATA_KEY')  # <-- CAMBIA EL NOMBRE
+API_KEY = os.getenv('FOOTBALL_DATA_KEY')
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 # Verificar API Key
@@ -54,11 +55,11 @@ def get_matches():
     
     # Ligas (ID de Football-Data.org)
     competitions = [
-        {"id": "PD", "name": "LaLiga"},          # Primera División
-        {"id": "PL", "name": "Premier League"},   # Premier League
-        {"id": "BL1", "name": "Bundesliga"},      # Bundesliga
-        {"id": "SA", "name": "Serie A"},          # Serie A
-        {"id": "FL1", "name": "Ligue 1"}          # Ligue 1
+        {"id": "PD", "name": "LaLiga"},
+        {"id": "PL", "name": "Premier League"},
+        {"id": "BL1", "name": "Bundesliga"},
+        {"id": "SA", "name": "Serie A"},
+        {"id": "FL1", "name": "Ligue 1"}
     ]
     
     all_matches = []
@@ -70,8 +71,7 @@ def get_matches():
             params = {
                 "dateFrom": today,
                 "dateTo": today,
-                "competitions": comp["id"],
-                "status": "SCHEDULED,LIVE,FINISHED"
+                "competitions": comp["id"]
             }
             
             response = requests.get(url, headers=headers, params=params, timeout=15)
@@ -146,7 +146,7 @@ def main():
         
         if df.empty:
             print("\n✅ Pipeline completado - No hay partidos hoy")
-            return
+            return  # <-- SALIR AQUÍ SI NO HAY PARTIDOS
         
         # Guardar en base de datos
         print(f"\n💾 Guardando {len(df)} partidos en la base de datos...")
@@ -172,6 +172,40 @@ def main():
         
         print(f"\n✅ {len(df)} partidos guardados correctamente")
         
+        # --- EJECUTAR MODELO DE PREDICCIÓN ---
+        print("\n" + "=" * 60)
+        print("🧠 EJECUTANDO MODELO DE PREDICCIÓN...")
+        print("=" * 60)
+        
+        try:
+            result = subprocess.run(
+                ['python', 'src/model_trainer.py'], 
+                capture_output=True, 
+                text=True
+            )
+            print(result.stdout)
+            if result.stderr:
+                print(f"⚠️ Errores: {result.stderr}")
+        except Exception as e:
+            print(f"❌ Error ejecutando modelo: {e}")
+        
+        # --- ENVIAR ALERTAS DE TELEGRAM ---
+        print("\n" + "=" * 60)
+        print("📱 ENVIANDO ALERTAS DE TELEGRAM...")
+        print("=" * 60)
+        
+        try:
+            result = subprocess.run(
+                ['python', 'src/telegram_alerts.py'], 
+                capture_output=True, 
+                text=True
+            )
+            print(result.stdout)
+            if result.stderr:
+                print(f"⚠️ Errores: {result.stderr}")
+        except Exception as e:
+            print(f"❌ Error enviando alertas: {e}")
+        
     except Exception as e:
         print(f"\n❌ Error en el pipeline: {e}")
         import traceback
@@ -183,30 +217,3 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("✅ PIPELINE COMPLETADO EXITOSAMENTE")
     print("=" * 60)
-    # Después de guardar partidos, ejecutar modelo y alertas
-if not df.empty:
-    print("\n" + "=" * 60)
-    print("🧠 EJECUTANDO MODELO DE PREDICCIÓN...")
-    print("=" * 60)
-    
-    try:
-        # Ejecutar modelo
-        import subprocess
-        result = subprocess.run(['python', 'src/model_trainer.py'], capture_output=True, text=True)
-        print(result.stdout)
-        if result.stderr:
-            print(f"⚠️ Errores: {result.stderr}")
-    except Exception as e:
-        print(f"❌ Error ejecutando modelo: {e}")
-    
-    print("\n" + "=" * 60)
-    print("📱 ENVIANDO ALERTAS DE TELEGRAM...")
-    print("=" * 60)
-    
-    try:
-        result = subprocess.run(['python', 'src/telegram_alerts.py'], capture_output=True, text=True)
-        print(result.stdout)
-        if result.stderr:
-            print(f"⚠️ Errores: {result.stderr}")
-    except Exception as e:
-        print(f"❌ Error enviando alertas: {e}")
