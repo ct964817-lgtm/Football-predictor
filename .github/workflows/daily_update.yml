@@ -9,27 +9,13 @@ jobs:
   update-data:
     runs-on: ubuntu-latest
     
-    # 🔧 AGREGAR ESTO PARA EVITAR PROBLEMAS DE RED
-    strategy:
-      matrix:
-        python-version: ['3.11']
-    
     steps:
     - uses: actions/checkout@v3
     
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python-version }}
-    
-    # 🔧 AGREGAR UN PASO DE VERIFICACIÓN DE RED
-    - name: Check network connectivity
-      run: |
-        ping -c 3 google.com || true
-        echo "=== DNS Resolution for Supabase ==="
-        nslookup db.cgftpfwrmgpyumkjtvaq.supabase.co || true
-        echo "=== IP Addresses ==="
-        host db.cgftpfwrmgpyumkjtvaq.supabase.co || true
+        python-version: '3.11'
     
     - name: Install dependencies
       run: |
@@ -38,7 +24,7 @@ jobs:
     
     - name: Run ETL Pipeline
       env:
-        API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+        FOOTBALL_DATA_KEY: ${{ secrets.FOOTBALL_DATA_KEY }}  # <-- NUEVA VARIABLE
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
         python src/etl_pipeline.py
