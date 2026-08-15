@@ -12,21 +12,17 @@ print("=" * 60)
 print("⚽ ETL PIPELINE - INICIANDO (API-Football)")
 print("=" * 60)
 
-# Cargar variables de entorno
 load_dotenv()
 
-# Obtener variables
-API_KEY = os.getenv('API_FOOTBALL_KEY')  # <-- CAMBIA EL NOMBRE
+API_KEY = os.getenv('API_FOOTBALL_KEY')
 DATABASE_URL = os.getenv('DATABASE_URL')
 
-# Verificar API Key
 if not API_KEY:
     print("❌ ERROR: API_FOOTBALL_KEY no configurada")
     print("ℹ️ Configura la variable API_FOOTBALL_KEY")
     print("   Ve a https://www.api-football.com y obtén tu API Key")
     sys.exit(1)
 
-# Verificar Database
 if not DATABASE_URL:
     print("❌ ERROR: DATABASE_URL no configurada")
     sys.exit(1)
@@ -34,7 +30,6 @@ if not DATABASE_URL:
 print(f"✅ API_KEY configurada: {API_KEY[:10]}...")
 print(f"✅ DATABASE_URL configurada: {DATABASE_URL[:20]}...")
 
-# Probar conexión a la base de datos
 try:
     engine = create_engine(DATABASE_URL)
     with engine.connect() as conn:
@@ -44,9 +39,6 @@ except Exception as e:
     print(f"❌ Error de conexión a BD: {e}")
     sys.exit(1)
 
-# ============================================
-# FUNCIÓN PRINCIPAL: get_matches()
-# ============================================
 def get_matches():
     """Obtiene partidos de hoy desde API-Football"""
     url = "https://v3.football.api-sports.io/fixtures"
@@ -55,13 +47,16 @@ def get_matches():
     
     print(f"\n📅 Fecha de hoy: {today}")
     
-    # 🔥 LISTA DE LIGAS (API-Football IDs)
-    # Liga MX: 235, Liga de Expansión MX: 236
-    # Puedes agregar más ligas si quieres
+    # 🔥 LIGAS DISPONIBLES EN EL PLAN GRATUITO
     leagues = [
-        {"id": 235, "name": "Liga MX (Apertura 2026)"},
-        {"id": 236, "name": "Liga de Expansión MX (Apertura 2026)"},
-
+        {"id": 39, "name": "Premier League"},
+        {"id": 140, "name": "LaLiga"},
+        {"id": 78, "name": "Bundesliga"},
+        {"id": 135, "name": "Serie A"},
+        {"id": 61, "name": "Ligue 1"},
+        {"id": 2, "name": "Champions League"},
+        {"id": 3, "name": "Europa League"},
+        {"id": 4, "name": "Conference League"},
     ]
     
     all_matches = []
@@ -72,21 +67,19 @@ def get_matches():
             
             params = {
                 "league": league["id"],
-                "season": "2025",  # <-- Cambia a 2025 si quieres temporada pasada
-                "date": "2025-08-15"
+                "season": "2025",
+                "date": today
             }
             
             response = requests.get(url, headers=headers, params=params, timeout=15)
             
             if response.status_code == 429:
                 print(f"  ⚠️ Límite excedido en {league['name']}")
-                print(f"  ⏳ Esperando 60 segundos...")
                 time.sleep(60)
-                response = requests.get(url, headers=headers, params=params, timeout=15)
+                continue
             
             if response.status_code != 200:
                 print(f"  ⚠️ Error {response.status_code} en {league['name']}")
-                print(f"  📄 Respuesta: {response.text[:200]}")
                 continue
                 
             data = response.json()
@@ -95,18 +88,10 @@ def get_matches():
             if not matches:
                 print(f"  ℹ️ No hay partidos en {league['name']} hoy")
             else:
-                # Mapear estados de API-Football
                 status_map = {
-                    'NS': 'NS',    # Not Started
-                    '1H': '1H',    # First Half
-                    '2H': '2H',    # Second Half
-                    'HT': 'HT',    # Half Time
-                    'ET': 'ET',    # Extra Time
-                    'PEN': 'PEN',  # Penalty Shootout
-                    'FT': 'FT',    # Finished
-                    'AET': 'AET',  # After Extra Time
-                    'PST': 'PST',  # Postponed
-                    'CANC': 'CANC' # Cancelled
+                    'NS': 'NS', '1H': '1H', '2H': '2H',
+                    'HT': 'HT', 'FT': 'FT', 'PST': 'PST',
+                    'CANC': 'CANC'
                 }
                 
                 for match in matches:
@@ -117,7 +102,7 @@ def get_matches():
                     
                     match_data = {
                         'match_id': fixture.get('id'),
-                        'season': 2026,
+                        'season': 2025,
                         'league_id': league["id"],
                         'match_date': fixture.get('date', today)[:10],
                         'home_team_id': home_team.get('id'),
@@ -137,8 +122,6 @@ def get_matches():
                 print(f"  ⏳ Esperando 6 segundos...")
                 time.sleep(6)
             
-        except requests.exceptions.Timeout:
-            print(f"  ⚠️ Timeout en {league['name']}")
         except Exception as e:
             print(f"  ❌ Error en {league['name']}: {e}")
     
@@ -149,9 +132,6 @@ def get_matches():
     print(f"\n✅ Total partidos encontrados: {len(all_matches)}")
     return pd.DataFrame(all_matches)
 
-# ============================================
-# FUNCIÓN PARA GUARDAR EQUIPOS
-# ============================================
 def update_teams(matches_df):
     """Guarda los equipos en la base de datos"""
     if matches_df.empty:
@@ -162,7 +142,6 @@ def update_teams(matches_df):
     
     for team_id in team_ids:
         try:
-            # Verificar si ya existe
             query = text("SELECT COUNT(*) FROM teams WHERE team_id = :team_id")
             with engine.connect() as conn:
                 count = conn.execute(query, {"team_id": team_id}).scalar()
@@ -170,7 +149,6 @@ def update_teams(matches_df):
             if count > 0:
                 continue
                 
-            # Obtener datos del equipo
             url = "https://v3.football.api-sports.io/teams"
             headers = {"x-rapidapi-key": API_KEY}
             params = {"id": team_id}
@@ -197,49 +175,33 @@ def update_teams(matches_df):
         except Exception as e:
             print(f"  ⚠️ Error con equipo {team_id}: {e}")
 
-# ============================================
-# FUNCIÓN PRINCIPAL
-# ============================================
 def main():
     try:
         print("\n" + "=" * 60)
         print("📊 ETL PIPELINE - EJECUTANDO")
         print("=" * 60)
         
-        # Obtener partidos
         df = get_matches()
         
         if df.empty:
             print("\n✅ Pipeline completado - No hay partidos hoy")
             return
         
-        # Guardar equipos (si no existen)
         update_teams(df)
         
-        # Guardar partidos
         print(f"\n💾 Guardando {len(df)} partidos en la base de datos...")
         df.to_sql('matches', engine, if_exists='append', index=False)
         
         print("\n📊 PARTIDOS DE HOY:")
         for _, row in df.iterrows():
             status_emoji = {
-                'FT': '✅',
-                'NS': '⏰',
-                '1H': '⏳',
-                '2H': '⏳',
-                'HT': '⏸️',
-                'PST': '📅',
-                'CANC': '❌'
+                'FT': '✅', 'NS': '⏰', '1H': '⏳',
+                '2H': '⏳', 'HT': '⏸️', 'PST': '📅', 'CANC': '❌'
             }.get(row['status'], '⏰')
-            
-            # Obtener nombres de equipos
-            home_name = row.get('home_team_id', 'Local')
-            away_name = row.get('away_team_id', 'Visita')
-            print(f"  {status_emoji} {home_name} vs {away_name}")
+            print(f"  {status_emoji} {row['home_team_id']} vs {row['away_team_id']}")
         
         print(f"\n✅ {len(df)} partidos guardados correctamente")
         
-        # --- EJECUTAR MODELO DE PREDICCIÓN ---
         print("\n" + "=" * 60)
         print("🧠 EJECUTANDO MODELO DE PREDICCIÓN...")
         print("=" * 60)
