@@ -59,13 +59,9 @@ def get_matches():
     # Liga MX: 262, Liga de Expansión MX: 263
     # Puedes agregar más ligas si quieres
     leagues = [
-        {"id": 262, "name": "Liga MX (Apertura 2026)"},
-        {"id": 263, "name": "Liga de Expansión MX (Apertura 2026)"},
-        {"id": 140, "name": "LaLiga"},
-        {"id": 39, "name": "Premier League"},
-        {"id": 78, "name": "Bundesliga"},
-        {"id": 135, "name": "Serie A"},
-        {"id": 61, "name": "Ligue 1"},
+        {"id": 235, "name": "Liga MX (Apertura 2026)"},
+        {"id": 236, "name": "Liga de Expansión MX (Apertura 2026)"},
+
     ]
     
     all_matches = []
