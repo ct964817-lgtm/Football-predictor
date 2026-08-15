@@ -8,23 +8,23 @@ on:
 jobs:
   update-data:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-    
+
     - name: Install dependencies
       run: |
         pip install --upgrade pip
         pip install -r requirements.txt
-    
+
     - name: Run ETL Pipeline
       env:
-        FOOTBALL_DATA_KEY: ${{ secrets.FOOTBALL_DATA_KEY }}  # <-- NUEVA VARIABLE
+        API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
         python src/etl_pipeline.py
