@@ -56,7 +56,7 @@ def get_matches():
     print(f"\n📅 Fecha de hoy: {today}")
     
     # 🔥 LISTA DE LIGAS (API-Football IDs)
-    # Liga MX: 262, Liga de Expansión MX: 263
+    # Liga MX: 235, Liga de Expansión MX: 236
     # Puedes agregar más ligas si quieres
     leagues = [
         {"id": 235, "name": "Liga MX (Apertura 2026)"},
@@ -72,8 +72,8 @@ def get_matches():
             
             params = {
                 "league": league["id"],
-                "season": "2026",  # <-- Cambia a 2025 si quieres temporada pasada
-                "date": today
+                "season": "2025",  # <-- Cambia a 2025 si quieres temporada pasada
+                "date": "2025-08-15"
             }
             
             response = requests.get(url, headers=headers, params=params, timeout=15)
