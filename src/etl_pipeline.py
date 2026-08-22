@@ -67,7 +67,7 @@ def get_matches():
             
             params = {
                 "league": league["id"],
-                "season": "2025",
+                "season": "2026",
                 "date": today
             }
             
